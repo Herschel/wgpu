@@ -7,7 +7,7 @@ use winit::{
 
 async fn run(event_loop: EventLoop<()>, window: Window) {
     let size = window.inner_size();
-    let instance = wgpu::Instance::new(wgpu::Backends::all());
+    let instance = wgpu::Instance::new(wgpu::Backends::GL);
     let surface = unsafe { instance.create_surface(&window) };
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
@@ -17,6 +17,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         })
         .await
         .expect("Failed to find an appropriate adapter");
+    dbg!(adapter.get_texture_format_features(wgpu::TextureFormat::Bgra8Unorm));
 
     // Create the logical device and command queue
     let (device, queue) = adapter
@@ -44,7 +45,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
         push_constant_ranges: &[],
     });
 
-    let swapchain_format = surface.get_preferred_format(&adapter).unwrap();
+    let swapchain_format = wgpu::TextureFormat::Bgra8Unorm;
 
     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: None,
