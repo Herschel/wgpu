@@ -188,10 +188,11 @@ impl framework::Example for Skybox {
             dist: 30.0,
         };
         let raw_uniforms = camera.to_uniform_data();
-        let uniform_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let uniform_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Buffer"),
-            contents: bytemuck::cast_slice(&raw_uniforms),
+            size: (raw_uniforms.len() * 4) as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -398,6 +399,8 @@ impl framework::Example for Skybox {
         queue: &wgpu::Queue,
         spawner: &framework::Spawner,
     ) {
+        let mut uniform_encoder =
+            device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
@@ -405,14 +408,13 @@ impl framework::Example for Skybox {
         let raw_uniforms = self.camera.to_uniform_data();
         self.staging_belt
             .write_buffer(
-                &mut encoder,
+                &mut uniform_encoder,
                 &self.uniform_buf,
                 0,
                 wgpu::BufferSize::new((raw_uniforms.len() * 4) as wgpu::BufferAddress).unwrap(),
                 device,
             )
             .copy_from_slice(bytemuck::cast_slice(&raw_uniforms));
-
         self.staging_belt.finish();
 
         {
@@ -453,7 +455,7 @@ impl framework::Example for Skybox {
             rpass.draw(0..3, 0..1);
         }
 
-        queue.submit(std::iter::once(encoder.finish()));
+        queue.submit([uniform_encoder.finish(), encoder.finish()]);
 
         let belt_future = self.staging_belt.recall();
         spawner.spawn_local(belt_future);
